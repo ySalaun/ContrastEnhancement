@@ -81,6 +81,32 @@ float* gaussianKernel(const float sd){
 	return kernel;
 }
 
+LWImage<float> bilat(const LWImage<float>& I, const float* kernel, const float kernel_size, const float sd){
+	// parameters
+	int i, j, ii, jj, c;
+	float sum, color;
+	int w = I.w, h = I.h, wh=w*h;
+	int ks = kernel_size/2;
+	float* data = new float[wh*3];
+
+	// loop for convolution
+	for(c =0; c<3; ++c){
+		for(i=0; i<w; ++i){
+			for(j=0; j<h; ++j){
+				sum = 0;
+				for(ii=-ks; ii<=ks; ++ii){
+					for(ii=-ks; ii<=ks; ++ii){
+						color = intensity(I, i+ii, j+jj, c*wh);
+						sum += color*kernel[ii+ks];
+				}
+				data[i+w*j+c*wh] = sum;
+			}
+		}
+	}
+	LWImage<float> convolved(data, w, h);
+	return convolved;
+}
+
 LWImage<float> convol1D(const LWImage<float>& I, const float* kernel, const float kernel_size, bool horizontal){
 	// parameters
 	int i, j, ii, c;
@@ -133,7 +159,7 @@ int main (int argc, char** argv)
 {
 	if(argc != 6) {
         std::cerr << "Usage: " << argv[0]
-                  << "im.png method output_path sd s"
+                  << " im.png method output_path sd s"
                   << std::endl;
         return 1;
     }
