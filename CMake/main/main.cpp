@@ -30,7 +30,8 @@ static bool saveImage(const char* name, const LWImage<float>& im){
 	for(int c=0; c<3; ++c){
 		for(int x=0; x<w; ++x){
 			for(int y=0; y<h; ++y){
-				data[x+im.w*y+c*wh] = (*(im.pixel(x,y)+c*wh));
+				float temp = (*(im.pixel(x,y)+c*wh));
+				data[x+im.w*y+c*wh] = (temp>255)?255:(temp<0)?0:temp;
 			}
 		}
 	}
@@ -50,7 +51,7 @@ float intensity(const LWImage<float>& I, const int i, const int j, const int col
 }
 
 // computes a gaussian 1D kernel of standard deviation sd
-float* gaussianKernel(const float sd){
+float* gaussianKernel(const float sd, const bool normalized){
 	// parameters
 	int i, n;
 	float value, sum;
@@ -74,8 +75,10 @@ float* gaussianKernel(const float sd){
 	kernel[n] = 1;
 
 	// normalize kernel
-	for(int i=0; i<2*n+1; ++i){
-		kernel[i] /= sum;
+	if(normalized){
+		for(int i=0; i<2*n+1; ++i){
+			kernel[i] /= sum;
+		}
 	}
 
 	return kernel;
@@ -84,7 +87,7 @@ float* gaussianKernel(const float sd){
 LWImage<float> bilat(const LWImage<float>& I, const float* kernel, const float kernel_size, const float sd){
 	// parameters
 	int i, j, ii, jj, c;
-	float sum, color;
+	float sum, norm_sum, color, color_center, gaussian_color, coeff;
 	int w = I.w, h = I.h, wh=w*h;
 	int ks = kernel_size/2;
 	float* data = new float[wh*3];
@@ -94,12 +97,19 @@ LWImage<float> bilat(const LWImage<float>& I, const float* kernel, const float k
 		for(i=0; i<w; ++i){
 			for(j=0; j<h; ++j){
 				sum = 0;
+				norm_sum= 0;
+				color_center = *(I.pixel(i,j)+c*wh);
 				for(ii=-ks; ii<=ks; ++ii){
-					for(ii=-ks; ii<=ks; ++ii){
+					for(jj=-ks; jj<=ks; ++jj){
 						color = intensity(I, i+ii, j+jj, c*wh);
-						sum += color*kernel[ii+ks];
+						gaussian_color = (color-color_center)/sd;
+						gaussian_color = exp(-0.5*gaussian_color*gaussian_color);
+						coeff = gaussian_color*kernel[ii+ks]*kernel[jj+ks];
+						sum += color*coeff;
+						norm_sum += coeff;
+					}
 				}
-				data[i+w*j+c*wh] = sum;
+				data[i+w*j+c*wh] = sum/norm_sum;
 			}
 		}
 	}
@@ -157,25 +167,29 @@ LWImage<float> usm(const LWImage<float> u, const LWImage<float> Mu, float s){
 
 int main (int argc, char** argv)
 {
-	if(argc != 6) {
-        std::cerr << "Usage: " << argv[0]
-                  << " im.png method output_path sd s"
-                  << std::endl;
-        return 1;
-    }
+	if(argc != 7){
+		std::cerr << "Usage: " << argv[0]
+				   << " input.png filtered.png output_path sd s sdi"
+				   << std::endl;
+		return 1;
+	}
 
     // Read image input
     LWImage<float> i_picture(0,0,0);
     if(! (loadImage(argv[1],i_picture)))
         return 1;
 
+	LWImage<float> i_filtered(0,0,0);
+    if(! (loadImage(argv[2],i_filtered)))
+        return 1;
+
     // Read method
-    int method;
-	float s, sd;		// sd = standard deviation of gaussian kernel
-						// s = parameter for usm
-    std::istringstream f(argv[2]), g(argv[4]), h(argv[5]);
-    if(! ((f>>method).eof()) || !((g>>sd).eof()) || !((h>>s).eof())) {
-        std::cerr << "Error reading method" << std::endl;
+	float s, sd, sdi;		// sd = standard deviation of gaussian kernel
+							// s = parameter for usm
+							// sd = standard deviation of intensity gaussian kernel for bilateral filter
+    std::istringstream f4(argv[4]), f5(argv[5]), f6(argv[6]);
+    if(! ((f4>>sd).eof()) || !((f5>>s).eof()) || !((f6>>sdi).eof())) {
+        std::cerr << "Error reading s or sd or sdi" << std::endl;
         return 1;
     }
 
@@ -184,16 +198,20 @@ int main (int argc, char** argv)
 	// USM method
 	message("USM method");
 	
-	message("kernel computation");								
-	float size = 2*floor(3*sd)+1;								// size of the kernel
-	float* kernel = gaussianKernel(sd);							// kernel
+	if(sdi == 0){
+		message("kernel computation");								
+		float size = 2*floor(3*sd)+1;								// size of the kernel
+		float* kernel = gaussianKernel(sd, sdi==0);					// kernel
 	
-	message("convolution process");
-	LWImage<float> M = convol1D(i_picture, kernel, size, true);	// M is the less resolute version of the input picture
-	M = convol1D(M, kernel, size, false);
+		message("convolution process");										
+		// linear filter
+		message("linear filter");
+		i_filtered = convol1D(i_picture, kernel, size, true);		// i_filtered is the less resolute version of the input picture
+		i_filtered = convol1D(i_filtered, kernel, size, false);
+	}
 
 	message("contrast enhancement");
-	LWImage<float> o_usm = usm(i_picture, M, s);
+	LWImage<float> o_usm = usm(i_picture, i_filtered, s);
 	
 	message("saving process");
 	saveImage(argv[3], o_usm);
