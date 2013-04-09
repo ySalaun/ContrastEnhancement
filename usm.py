@@ -31,13 +31,14 @@ for sdi in {0, 0.05, 0.1, 0.2}:
 			os.system('convert '+ temp + ' ' + filtered)
 		else:
 			filtered = img
-		for s in {-10,-5,-2,-0.5,0.5,2,5,10}:
-			print 'sdi =', sdi, 'sd=', sd, 's=', s
-			## OUTPUT PATH
-			output = path + 'Images\\' + name + '\\sdi=' + str(sdi) + '\\s=' + str(s)
-			## CREATE FOLDER IF NECESSARY
-			if not os.path.exists(output): 
-				os.makedirs(output)
-			output += '\\' + name + '_s=' + str(s) + '_sd=' + str(sd) + '_sdi=' + str(sdi) + '.png'
-			# compute usm
-			os.system(path + 'Build\\bin\\Release\\main.exe' + ' ' + img + ' ' + filtered + ' ' + output + ' ' + str(sd) + ' ' + str(s) + ' ' + str(sdi) )
+		for l in {1, 1.1, 1.2, 1.5 , 2}:
+			for s in {0.5,2,5,10}:
+				print 'sdi =', sdi, 'sd=', sd, 'l=', l, 's=', s
+				## OUTPUT PATH
+				output = path + 'Images\\' + name + '\\sdi=' + str(sdi) + '\\l=' + str(l) + '\\s=' + str(s)
+				## CREATE FOLDER IF NECESSARY
+				if not os.path.exists(output): 
+					os.makedirs(output)
+				output += '\\' + name + '_s=' + str(s) + '_l=' + str(l) + '_sd=' + str(sd) + '_sdi=' + str(sdi) + '.png'
+				# compute usm
+				os.system(path + 'Build\\bin\\Release\\main.exe' + ' ' + img + ' ' + filtered + ' ' + output + ' ' + str(sd) + ' ' + str(s) + ' ' + str(sdi)  + ' ' + str(l))
