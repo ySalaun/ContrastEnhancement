@@ -16,8 +16,8 @@ bilat = path +'Bilat\\truncated_kernel_bf.exe'
 # bilateral filter params 
 #	- sdi	(standard deviation for intensity sdi = 0 ==> gaussian)
 #	- sd	(standard deviation for space sd = 0 ==> gaussian)
-for sdi in {0, 0.05, 0.1, 0.2}:
-	for sd in {1,5,10,20,50,150}:
+for sdi in {0}:				#for sdi in {0, 0.05, 0.1, 0.2}:
+	for sd in {5,10,20}:	#	for sd in {1,5,10,20,50,150}:
 		if sdi != 0:
 			# create filtered picture path
 			filtered = path + 'Images\\' + name + '\\sdi=' + str(sdi) + '\\'
@@ -31,8 +31,8 @@ for sdi in {0, 0.05, 0.1, 0.2}:
 			os.system('convert '+ temp + ' ' + filtered)
 		else:
 			filtered = img
-		for l in {1, 1.1, 1.2, 1.5 , 2}:
-			for s in {0.5,2,5,10}:
+		for l in {0.2,0.3,0.5, 0.99, 1, 2, 10}:
+			for s in {0,0.5,1,2}:
 				print 'sdi =', sdi, 'sd=', sd, 'l=', l, 's=', s
 				## OUTPUT PATH
 				output = path + 'Images\\' + name + '\\sdi=' + str(sdi) + '\\l=' + str(l) + '\\s=' + str(s)

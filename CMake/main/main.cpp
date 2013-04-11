@@ -174,7 +174,8 @@ LWImage<float> soft_contrast(const LWImage<float> u, const float lambda){
 	for(c =0; c<3; ++c){
 		for(i=0; i<w; ++i){
 			for(j=0; j<h; ++j){
-				vij = lambda * ((*(u.pixel(i,j)+c*wh))-128) + 128;
+				vij = (*(u.pixel(i,j)+c*wh))-128;
+				vij = lambda*(vij/128)*(vij/128)*vij + 128;
 				data[i+w*j+c*wh] = (vij > 255)?255:((vij<0)?0:vij);
 			}
 		}
@@ -189,14 +190,37 @@ LWImage<float> blend(const LWImage<float> usm, const LWImage<float> sc){
 	float* data = new float[wh*3];
 	float uij, sij, lambda;
 
-	// computing v = clamp((u-128)*lambda + 128, 0, 255) on the whole picture
+	// computing v = u + lambda(i,j) * s on the whole picture
 	for(c =0; c<3; ++c){
 		for(i=0; i<w; ++i){
 			for(j=0; j<h; ++j){
 				uij = (*(usm.pixel(i,j)+c*wh));
 				sij = (*(sc.pixel(i,j)+c*wh));
-				lambda = exp(-abs(uij-sij)/30);
-				data[i+w*j+c*wh] = lambda*sij+(1-lambda)*uij;
+				lambda = abs(sij-uij)/128;
+				lambda = (lambda > 1)? 1: lambda;
+				data[i+w*j+c*wh] = (1-lambda)*sij+lambda*uij;
+			}
+		}
+	}
+	LWImage<float> v(data, w, h);
+	return v;
+}
+
+LWImage<float> blend(const LWImage<float> sc, const LWImage<float> u, const LWImage<float> Mu, const float s){
+	// parameters
+	int i, j, c, w = sc.w, h = sc.h, wh=w*h;
+	float* data = new float[wh*3];
+	float gij, sij, lambda;
+
+	// computing v = u + lambda(i,j) * s on the whole picture
+	for(c =0; c<3; ++c){
+		for(i=0; i<w; ++i){
+			for(j=0; j<h; ++j){
+				gij = (*(u.pixel(i,j)+c*wh)) - (*(Mu.pixel(i,j)+c*wh));
+				sij = (*(sc.pixel(i,j)+c*wh));
+				lambda = abs((128-gij)/128);
+				lambda = (lambda > 1)? 1: (lambda<0)?0:lambda;
+				data[i+w*j+c*wh] = sij+lambda*s*gij;
 			}
 		}
 	}
@@ -260,11 +284,14 @@ int main (int argc, char** argv)
 	else{
 		message("soft contrast blending method");
 		LWImage<float> sc_pic = soft_contrast(i_picture, lambda);
-		message("contrast enhancement");
-		o_usm = usm(i_picture, i_filtered, s);
-		message("blending pictures");
-		o_usm = blend(o_usm, sc_pic);
+		//message("contrast enhancement");
+		//o_usm = usm(i_picture, i_filtered, s);
+		//message("blending pictures");
+		//o_usm = blend(o_usm, sc_pic);
+		o_usm = blend(sc_pic, i_picture, i_filtered, s);
 	}
+
+	//o_usm = soft_contrast(o_usm, 0.5);
 	
 	message("saving process");
 	saveImage(argv[3], o_usm);
